@@ -380,11 +380,24 @@ impl wayland::interfaces::wl_output::EvHandler for Daemon {
         for wallpaper in self.wallpapers.iter() {
             let mut wallpaper = wallpaper.borrow_mut();
             if wallpaper.has_output(sender_id) {
-                match NonZeroI32::new(factor) {
-                    Some(factor) => wallpaper.set_scale(Scale::Whole(factor)),
-                    None => error!("received scale factor of 0 from compositor"),
+                if !wallpaper.is_fractionally_scaled() {
+                    debug!(
+                        "{:?} updating scale, was {}, now {}",
+                        sender_id,
+                        wallpaper.get_bg_info(self.pixel_format).scale_factor,
+                        factor
+                    );
+                    match NonZeroI32::new(factor) {
+                        Some(factor) => wallpaper.set_scale(Scale::Whole(factor)),
+                        None => error!("received scale factor of 0 from compositor"),
+                    }
+                    break;
+                } else {
+                    debug!(
+                        "{:?} recieved scale update even though it is fractionally scaled",
+                        sender_id
+                    );
                 }
-                break;
             }
         }
     }
@@ -403,6 +416,7 @@ impl wayland::interfaces::wl_output::EvHandler for Daemon {
         for wallpaper in self.wallpapers.iter() {
             let mut wallpaper = wallpaper.borrow_mut();
             if wallpaper.has_output(sender_id) {
+                debug!("Recieved output update for {sender_id:?}");
                 wallpaper.set_desc(description.to_string());
                 break;
             }
@@ -492,6 +506,15 @@ impl wayland::interfaces::wp_fractional_scale_v1::EvHandler for Daemon {
             if wallpaper.borrow().has_fractional_scale(sender_id) {
                 match NonZeroI32::new(scale as i32) {
                     Some(factor) => {
+                        debug!(
+                            "{:?} now updating to fractional scale {} from {}",
+                            sender_id,
+                            factor,
+                            wallpaper
+                                .borrow()
+                                .get_bg_info(self.pixel_format)
+                                .scale_factor
+                        );
                         wallpaper.borrow_mut().set_scale(Scale::Fractional(factor));
                         if wallpaper
                             .borrow_mut()

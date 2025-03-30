@@ -369,6 +369,10 @@ impl Wallpaper {
         self.wp_fractional.is_some_and(|f| f == fractional_scale)
     }
 
+    pub(super) fn is_fractionally_scaled(&self) -> bool {
+        self.wp_fractional.is_some()
+    }
+
     pub(super) fn get_dimensions(&self) -> (u32, u32) {
         let dim = self
             .inner
